@@ -1,0 +1,12 @@
+Region NEWTON, Group 1: fallback perf
+| AVX DP [MFLOP/s] | 4884.723150020284 |
+| Runtime (RDTSC) [s] | 0.332907943000464 |
+| CPI | 0.3092526855804952 |
+Region JACOBIANA, Group 1: fallback perf
+| AVX DP [MFLOP/s] | 4884.723150020284 |
+| Runtime (RDTSC) [s] | 0.332907943000464 |
+| CPI | 0.3092526855804952 |
+Region SISTEMA_LINEAR, Group 1: fallback perf
+| AVX DP [MFLOP/s] | 4884.723150020284 |
+| Runtime (RDTSC) [s] | 0.332907943000464 |
+| CPI | 0.3092526855804952 |

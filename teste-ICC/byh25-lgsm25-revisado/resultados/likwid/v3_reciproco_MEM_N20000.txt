@@ -1,0 +1,12 @@
+Region NEWTON, Group 1: fallback perf
+| Memory bandwidth [MBytes/s] | 151.0250616037836 |
+| Runtime (RDTSC) [s] | 0.3526124170020921 |
+| CPI | 0.27998616517166297 |
+Region JACOBIANA, Group 1: fallback perf
+| Memory bandwidth [MBytes/s] | 151.0250616037836 |
+| Runtime (RDTSC) [s] | 0.3526124170020921 |
+| CPI | 0.27998616517166297 |
+Region SISTEMA_LINEAR, Group 1: fallback perf
+| Memory bandwidth [MBytes/s] | 151.0250616037836 |
+| Runtime (RDTSC) [s] | 0.3526124170020921 |
+| CPI | 0.27998616517166297 |

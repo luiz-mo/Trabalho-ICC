@@ -1,0 +1,12 @@
+Region NEWTON, Group 1: fallback perf
+| L2 miss ratio | 0.8153308465153987 |
+| Runtime (RDTSC) [s] | 0.06769561799956136 |
+| CPI | 0.6961280019754666 |
+Region JACOBIANA, Group 1: fallback perf
+| L2 miss ratio | 0.8153308465153987 |
+| Runtime (RDTSC) [s] | 0.06769561799956136 |
+| CPI | 0.6961280019754666 |
+Region SISTEMA_LINEAR, Group 1: fallback perf
+| L2 miss ratio | 0.8153308465153987 |
+| Runtime (RDTSC) [s] | 0.06769561799956136 |
+| CPI | 0.6961280019754666 |

@@ -1,0 +1,127 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazilian]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{hyperref}
+\usepackage{float}
+
+% Mostra o gráfico se existir; senão, uma caixa de aviso (não quebra a compilação).
+\newcommand{\grafico}[2]{%
+  \begin{figure}[H]\centering
+  \IfFileExists{../resultados/graficos/#1.png}%
+    {\includegraphics[width=0.82\linewidth]{../resultados/graficos/#1.png}}%
+    {\fbox{\parbox{0.8\linewidth}{\centering [gráfico \texttt{\detokenize{#1}} ainda não gerado]}}}%
+  \caption{#2}\label{fig:#1}
+  \end{figure}}
+\newcommand{\preencher}[1]{\textbf{[PREENCHER: #1]}}
+
+\title{Otimização do Método de Newton para Sistemas Não-Lineares de Broyden:\\ análise de desempenho}
+\author{Nome1 (GRR) \and Nome2 (GRR)\\
+Departamento de Informática -- UFPR\\ CI1164 -- Introdução à Computação Científica}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Este trabalho implementa o Método de Newton para resolver Sistemas Não-Lineares de Broyden (SNLB)
+e compara quatro versões do programa: uma base com matriz densa e solver $O(n^3)$, uma versão que explora a
+estrutura tridiagonal da Jacobiana e duas versões otimizadas (vetorização, alinhamento, fusão de laços e
+redução de divisões). O desempenho é avaliado com o LIKWID (tempo, banda de memória, taxa de cache miss
+e MFLOP/s) para $N$ de 32 a 20000. \preencher{resumir os principais resultados numéricos (ex.: speedup da v3 sobre a v0 e a v1).}
+\end{abstract}
+
+\section{Introdução}
+Um SNLB é $F(X)=0$, com $f_1=-2x_1^2+3x_1-2x_2+1$, $f_i=-2x_i^2+3x_i-x_{i-1}-2x_{i+1}+1$ ($2\le i\le n-1$)
+e $f_n=-2x_n^2+3x_n-x_{n-1}$. O Método de Newton resolve, a cada iteração $k$, o sistema linear
+$J(X^{(k)})\Delta^{(k)}=-F(X^{(k)})$ e atualiza $X^{(k+1)}=X^{(k)}+\Delta^{(k)}$, parando quando
+$\|F(X^{(k)})\|_\infty<\varepsilon$, quando $\|\Delta^{(k)}\|_\infty<\varepsilon$ ou após MAX iterações.
+Neste problema a Jacobiana é \emph{tridiagonal}: $\partial f_i/\partial x_{i-1}=-1$,
+$\partial f_i/\partial x_i=3-4x_i$ e $\partial f_i/\partial x_{i+1}=-2$.
+
+\section{Ambiente experimental}
+\preencher{colar o resultado de \texttt{likwid-topology -g -c} (modelo da CPU, nº de núcleos, frequência, tamanhos e associatividade das caches L1/L2/L3, banda de memória). O arquivo gerado é \texttt{resultados/topologia.txt}.}
+\par\smallskip
+Compilador: GCC \preencher{versão}, flags \texttt{-O3 -march=native -mavx -fopt-info-vec}. Sistema: \preencher{SO/kernel}.
+Frequência fixada em \preencher{GHz}, execução no núcleo \preencher{n} com a máquina exclusiva.
+Todos os testes usam $\varepsilon=0$, MAX=25 e $x_0=0$; os tempos são a média de \preencher{10} execuções
+(\texttt{timestamp()} em ms, binário sem instrumentação) e os contadores vêm de uma execução sob \texttt{likwid-perfctr}
+com marcadores \texttt{NEWTON}, \texttt{JACOBIANA} e \texttt{SISTEMA\_LINEAR}.
+
+\section{Implementação}
+\subsection{Decisões de projeto}
+\paragraph{Método do sistema linear.} A Jacobiana é tridiagonal, então a eliminação de Gauss
+custa $O(n)$ (cerca de $5n$ FLOPs na triangularização e $3n$ na retrossubstituição, slides da Parte 5)
+contra $O(n^3)$ de uma eliminação densa. Mantém-se pivoteamento parcial entre linhas adjacentes, pois $3-4x_i$
+pode se aproximar de zero; o pivoteamento pode gerar uma segunda superdiagonal (\texttt{du2}).
+\paragraph{Estrutura de dados.} Quatro vetores contíguos (\texttt{a,d,c,du2}) em vez de uma matriz $n\times n$:
+memória $O(n)$ e acessos de passo unitário. Na versão base usa-se \texttt{double **} com linhas separadas.
+\paragraph{Cálculo da Jacobiana.} Derivadas analíticas escritas diretamente (sem derivação numérica nem
+\texttt{libmatheval}), custo $O(n)$ por iteração.
+
+\subsection{Versões}
+\begin{itemize}
+\item \textbf{v0 (base)}: Jacobiana densa, Gauss $O(n^3)$, sem otimizações.
+\item \textbf{v1}: tridiagonal, pivoteamento adjacente; \texttt{calloc/free} por iteração, três passadas de \texttt{isfinite}, vetores auxiliares.
+\item \textbf{v2}: v1 mais as otimizações abaixo.
+\item \textbf{v3}: v2 com um único inverso de pivô por linha.
+\end{itemize}
+
+\subsection{Otimizações e justificativas}
+\begin{description}
+\item[\texttt{restrict} e ausência de aliasing] (\texttt{funcao.c}, \texttt{jacobiana.c}, \texttt{solver.c}, \texttt{newton.c}).
+Sem \texttt{restrict} o GCC versiona os laços por possível aliasing; com ele vetoriza direto (relatório \texttt{-fopt-info-vec}).
+\item[Laços vetorizáveis] \texttt{calculaMenosF} e \texttt{calculaJacobiana} são laços de passo unitário, sem desvios e sem
+dependência de dados, vetorizados com AVX (4 \texttt{double} por instrução).
+\item[Eliminação de subexpressões e menos trabalho] $-f_i=x_i(2x_i-3)+x_{i-1}+2x_{i+1}-1$; calcula-se diretamente $b=-F$, eliminando um vetor e uma passada.
+\item[Subdiagonal constante] \texttt{a[]} vale $-1$ e não é alterada pelo solver: é preenchida uma vez; a Jacobiana só reescreve \texttt{d} e \texttt{c}.
+\item[Fusão de laços] norma e checagem de finitude de $b$ em uma passada; $X+\Delta$, $\|\Delta\|_\infty$ e finitude em outra (antes: 3 passadas). Reduz tráfego de memória, pois o código é limitado por memória.
+\item[Sem alocação no laço] \texttt{du2} pré-alocado; elimina \texttt{calloc/free} (e a página zerada) no trecho \texttt{SISTEMA\_LINEAR}.
+\item[Menos desvios] sem \texttt{isfinite} dentro da fatoração, uma só passada para a escala, sem testes de pivô repetidos na retrossubstituição.
+\item[Alinhamento] \texttt{aligned\_alloc(64)} nos vetores de trabalho (linha de cache e AVX-512).
+\item[Inverso do pivô (v3)] a divisão tem latência alta e pouco pipeline (slides de pipelining); como a retrossubstituição é uma cadeia de dependências, substituir $/d_i$ por $\cdot(1/d_i)$ remove a divisão do caminho crítico.
+\end{description}
+\paragraph{O que não foi aplicado, e por quê.} Padding contra potência de 2 e \emph{loop blocking}/\emph{unroll\&jam}
+não se aplicam: todos os acessos têm passo unitário e os dados são $O(n)$. A eliminação é intrinsecamente sequencial
+(dependência de dados entre linhas), por isso não vetoriza.
+
+\section{Resultados}
+\subsection{Tempo de execução}
+\grafico{tempo_newton}{Tempo médio -- execução total do Método de Newton.}
+\grafico{tempo_jacobiana}{Tempo médio -- cálculo das matrizes Jacobianas.}
+\grafico{tempo_sistema_linear}{Tempo médio -- resolução dos sistemas lineares.}
+\preencher{explicar: inclinação das curvas ($n^3$ na v0 vs. linear nas demais), speedups, ruído em N pequeno, efeito da saída da cache (L2/L3) em N grande.}
+
+\subsection{Banda de memória}
+\grafico{banda_newton}{Banda de memória -- execução total.}
+\grafico{banda_jacobiana}{Banda de memória -- Jacobianas.}
+\grafico{banda_sistema_linear}{Banda de memória -- sistemas lineares.}
+\preencher{explicar o que mostram (grupo MEM ou L3), relacionar com o tamanho dos dados e das caches da CPU.}
+
+\subsection{Cache miss}
+\grafico{cache_newton}{Taxa de cache miss -- execução total.}
+\grafico{cache_jacobiana}{Taxa de cache miss -- Jacobianas.}
+\grafico{cache_sistema_linear}{Taxa de cache miss -- sistemas lineares.}
+\preencher{explicar o grupo usado (L2CACHE ou CACHE/L1CACHE), por que a v0 (linhas separadas, acesso por coluna no pivô) tem mais misses.}
+
+\subsection{Operações aritméticas}
+\grafico{flops_newton}{MFLOP/s -- execução total (FLOPS\_DP contínuo, FLOPS\_AVX tracejado).}
+\grafico{flops_jacobiana}{MFLOP/s -- Jacobianas.}
+\grafico{flops_sistema_linear}{MFLOP/s -- sistemas lineares.}
+\preencher{explicar: Jacobiana vetorizada (AVX alto) vs. solver escalar (sequencial); balanço de código; código limitado por memória.}
+
+\section{Conclusão}
+\preencher{conclusões, limitações (ex.: dependência de $x_0$ para a convergência) e trabalhos futuros.}
+
+\begin{thebibliography}{9}
+\bibitem{hager} G. Hager, G. Wellein. \emph{Introduction to High Performance Computing for Scientists and Engineers}. CRC Press, 2011.
+\bibitem{ruggiero} M. A. G. Ruggiero, V. L. R. Lopes. \emph{Cálculo Numérico: Aspectos Teóricos e Computacionais}. McGraw-Hill, 1988.
+\bibitem{peters} S. Peters, J. F. Szeremeta. \emph{Cálculo Numérico Computacional}. Editora UFSC.
+\bibitem{likwid} \emph{LIKWID}. \url{https://github.com/RRZE-HPC/likwid}
+\bibitem{slides} A. Delgado, G. Derenievicz. Notas de aula de CI1164 -- Introdução à Computação Científica, UFPR/DINF.
+\end{thebibliography}
+\end{document}

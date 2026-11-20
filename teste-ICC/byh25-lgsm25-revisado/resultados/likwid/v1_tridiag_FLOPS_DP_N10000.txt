@@ -1,0 +1,12 @@
+Region NEWTON, Group 1: fallback perf
+| DP [MFLOP/s] | 3741.6886535633344 |
+| Runtime (RDTSC) [s] | 0.2199422509984288 |
+| CPI | 0.2940160434570317 |
+Region JACOBIANA, Group 1: fallback perf
+| DP [MFLOP/s] | 3741.6886535633344 |
+| Runtime (RDTSC) [s] | 0.2199422509984288 |
+| CPI | 0.2940160434570317 |
+Region SISTEMA_LINEAR, Group 1: fallback perf
+| DP [MFLOP/s] | 3741.6886535633344 |
+| Runtime (RDTSC) [s] | 0.2199422509984288 |
+| CPI | 0.2940160434570317 |

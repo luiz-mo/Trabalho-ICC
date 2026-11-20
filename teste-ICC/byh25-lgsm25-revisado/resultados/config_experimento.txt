@@ -1,0 +1,12 @@
+versoes=v0_densa v1_tridiag v2_otimizada v3_reciproco
+tamanhos=32 64 128 256 512 1000 2000 4000 8000 9000 10000 20000
+n_max_densa=2000
+reps=10
+core=0
+x0=0
+max=25
+epsilon=0
+grupo_mem=MEM
+grupo_cache=L2CACHE
+grupo_flops_dp=FLOPS_DP
+grupo_flops_avx=FLOPS_AVX
